@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pocket Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@600;800&display=swap">
+<style>
+:root{--bg:#e6e9ff;--panel:#fff;--ink:#1d1b3a;--a:#ff7a3d;--b:#2ec4a6;--c:#ffd23f;--d:#ff5d8f;--shadow:#1d1b3a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1840;--panel:#2a2660;--ink:#f3f1ff;--shadow:#0b0a22}}
+:root[data-theme="dark"]{--bg:#1b1840;--panel:#2a2660;--ink:#f3f1ff;--shadow:#0b0a22}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Nunito,system-ui,sans-serif;font-weight:600;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h1,h2{font-family:Bungee,Impact,sans-serif;font-weight:400;margin:0;letter-spacing:.5px}
+h1{font-size:clamp(2.2rem,9vw,3.6rem);line-height:1;transform:rotate(-1.5deg);display:inline-block;color:var(--a);text-shadow:3px 3px 0 var(--shadow)}
+.tag{margin:12px 0 22px;font-size:1.05rem}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.tab,.btn{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:3px solid var(--shadow);border-radius:14px;padding:10px 16px;cursor:pointer;box-shadow:4px 4px 0 var(--shadow);transition:transform .08s,box-shadow .08s}
+.tab:active,.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--shadow)}
+.tab:focus-visible,.btn:focus-visible,.card:focus-visible,.cell:focus-visible{outline:3px solid var(--d);outline-offset:3px}
+.tab[aria-selected="true"]{background:var(--c);color:#1d1b3a}
+.stage{background:var(--panel);border:3px solid var(--shadow);border-radius:20px;box-shadow:8px 8px 0 var(--shadow);padding:20px}
+.stage h2{font-size:1.5rem;margin-bottom:4px}
+.hint{margin:0 0 14px;opacity:.85}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-weight:800}
+.hidden{display:none}
+/* memory */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:420px;margin:0 auto}
+.card{aspect-ratio:1;font-size:clamp(1.8rem,9vw,2.8rem);border:3px solid var(--shadow);border-radius:14px;background:var(--a);color:transparent;cursor:pointer;display:grid;place-items:center;box-shadow:3px 3px 0 var(--shadow);font-family:inherit}
+.card.up{background:var(--panel);color:inherit}
+.card.done{background:var(--b);color:#1d1b3a;cursor:default}
+/* ttt */
+.ttt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px;margin:0 auto}
+.cell{aspect-ratio:1;font-family:Bungee,Impact,sans-serif;font-size:2.6rem;border:3px solid var(--shadow);border-radius:14px;background:var(--bg);color:var(--ink);cursor:pointer}
+.cell.x{color:var(--a)}.cell.o{color:var(--b)}.cell.win{background:var(--c);color:#1d1b3a}
+/* snake */
+canvas{display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1;border:3px solid var(--shadow);border-radius:14px;background:var(--bg);touch-action:none}
+.pad{display:grid;grid-template-columns:repeat(3,56px);gap:8px;justify-content:center;margin-top:14px}
+.pad .btn{padding:8px 0;font-size:1.3rem}
+.pad .btn:nth-child(1){grid-column:2}.pad .btn:nth-child(2){grid-column:1;grid-row:2}.pad .btn:nth-child(3){grid-column:2;grid-row:2}.pad .btn:nth-child(4){grid-column:3;grid-row:2}
+.msg{text-align:center;font-weight:800;min-height:1.6em;margin-top:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pocket Arcade</h1>
+  <p class="tag">Three quick games. Pick one and play.</p>
+  <nav role="tablist" aria-label="Games">
+    <button class="tab" role="tab" data-g="memory" aria-selected="true">Memory match</button>
+    <button class="tab" role="tab" data-g="ttt" aria-selected="false">Tic-tac-toe</button>
+    <button class="tab" role="tab" data-g="snake" aria-selected="false">Snake</button>
+  </nav>
+
+  <section class="stage" id="memory">
+    <h2>Memory match</h2>
+    <p class="hint">Flip two cards. Match all six pairs in as few moves as you can.</p>
+    <div class="bar"><span>Moves: <b id="mMoves">0</b></span><span>Best: <b id="mBest">-</b></span><button class="btn" id="mNew">New game</button></div>
+    <div class="grid" id="mGrid"></div>
+    <div class="msg" id="mMsg"></div>
+  </section>
+
+  <section class="stage hidden" id="ttt">
+    <h2>Tic-tac-toe</h2>
+    <p class="hint">You are X. The computer plays O and never misses a win.</p>
+    <div class="bar"><span>Wins <b id="tW">0</b> · Draws <b id="tD">0</b> · Losses <b id="tL">0</b></span><button class="btn" id="tNew">New round</button></div>
+    <div class="ttt" id="tGrid"></div>
+    <div class="msg" id="tMsg">Your move.</div>
+  </section>
+
+  <section class="stage hidden" id="snake">
+    <h2>Snake</h2>
+    <p class="hint">Use arrow keys, swipe, or the buttons. Eat apples, avoid walls and yourself.</p>
+    <div class="bar"><span>Score: <b id="sScore">0</b></span><span>Best: <b id="sBest">0</b></span><button class="btn" id="sNew">Start</button></div>
+    <canvas id="cv" width="300" height="300" aria-label="Snake game board"></canvas>
+    <div class="pad"><button class="btn" data-d="up" aria-label="Up">▲</button><button class="btn" data-d="left" aria-label="Left">◀</button><button class="btn" data-d="down" aria-label="Down">▼</button><button class="btn" data-d="right" aria-label="Right">▶</button></div>
+    <div class="msg" id="sMsg">Press Start.</div>
+  </section>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+function load(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t));
+  document.querySelectorAll('.stage').forEach(s=>s.classList.toggle('hidden',s.id!==t.dataset.g));
+  if(t.dataset.g!=='snake')stopSnake();
+});
+
+/* memory */
+let mFirst=null,mLock=false,mMoves=0,mLeft=6,mBest=load('pa-mem',null);
+function memNew(){
+  const e=['🚀','🐙','🍕','🎲','🦊','🌵'];const deck=[...e,...e].sort(()=>Math.random()-.5);
+  mFirst=null;mLock=false;mMoves=0;mLeft=6;$('#mMoves').textContent=0;$('#mMsg').textContent='';
+  $('#mBest').textContent=mBest??'-';
+  const g=$('#mGrid');g.innerHTML='';
+  deck.forEach(v=>{const b=document.createElement('button');b.className='card';b.dataset.v=v;b.textContent=v;b.setAttribute('aria-label','Hidden card');b.onclick=()=>flip(b);g.appendChild(b)});
+}
+function flip(b){
+  if(mLock||b.classList.contains('up')||b.classList.contains('done'))return;
+  b.classList.add('up');b.setAttribute('aria-label','Card '+b.dataset.v);
+  if(!mFirst){mFirst=b;return}
+  mMoves++;$('#mMoves').textContent=mMoves;
+  if(mFirst.dataset.v===b.dataset.v){
+    mFirst.classList.replace('up','done');b.classList.replace('up','done');mFirst=null;mLeft--;
+    if(!mLeft){const nb=mBest===null||mMoves<mBest;if(nb){mBest=mMoves;save('pa-mem',mBest);$('#mBest').textContent=mBest}
+      $('#mMsg').textContent='Done in '+mMoves+' moves'+(nb?' - a new best!':'.')}
+  }else{
+    mLock=true;const a=mFirst;mFirst=null;
+    setTimeout(()=>{a.classList.remove('up');b.classList.remove('up');a.setAttribute('aria-label','Hidden card');b.setAttribute('aria-label','Hidden card');mLock=false},800);
+  }
+}
+$('#mNew').onclick=memNew;memNew();
+
+/* tic-tac-toe */
+const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let tb,tOver,tS=load('pa-ttt',{w:0,d:0,l:0});
+function winner(b){for(const l of L)if(b[l[0]]&&b[l[0]]===b[l[1]]&&b[l[0]]===b[l[2]])return{p:b[l[0]],l};return null}
+function mm(b,turn){const w=winner(b);if(w)return w.p==='O'?1:-1;if(b.every(Boolean))return 0;
+  let best=turn==='O'?-2:2;for(let i=0;i<9;i++)if(!b[i]){b[i]=turn;const s=mm(b,turn==='O'?'X':'O');b[i]=null;best=turn==='O'?Math.max(best,s):Math.min(best,s)}return best}
+function tDraw(){const w=winner(tb);document.querySelectorAll('.cell').forEach((c,i)=>{c.textContent=tb[i]||'';c.className='cell '+(tb[i]||'').toLowerCase()+(w&&w.l.includes(i)?' win':'');c.setAttribute('aria-label','Cell '+(i+1)+(tb[i]?', '+tb[i]:', empty'))});
+  $('#tW').textContent=tS.w;$('#tD').textContent=tS.d;$('#tL').textContent=tS.l}
+function tEnd(){const w=winner(tb);
+  if(w){tOver=true;if(w.p==='X'){tS.w++;$('#tMsg').textContent='You win!'}else{tS.l++;$('#tMsg').textContent='Computer wins.'}}
+  else if(tb.every(Boolean)){tOver=true;tS.d++;$('#tMsg').textContent='Draw.'}
+  if(tOver)save('pa-ttt',tS);tDraw();return tOver}
+function tNew(){tb=Array(9).fill(null);tOver=false;$('#tMsg').textContent='Your move.';tDraw()}
+function tPlay(i){if(tOver||tb[i])return;tb[i]='X';tDraw();if(tEnd())return;
+  let bi=-1,bs=-2;for(let j=0;j<9;j++)if(!tb[j]){tb[j]='O';const s=mm(tb,'X');tb[j]=null;if(s>bs){bs=s;bi=j}}
+  tb[bi]='O';tEnd()}
+const tg=$('#tGrid');for(let i=0;i<9;i++){const b=document.createElement('button');b.className='cell';b.onclick=()=>tPlay(i);tg.appendChild(b)}
+$('#tNew').onclick=tNew;tNew();
+
+/* snake */
+const cv=$('#cv'),cx=cv.getContext('2d'),N=15,S=cv.width/N;
+let sn,dir,nd,ap,sc,timer=null,sBest=load('pa-snake',0);$('#sBest').textContent=sBest;
+const V={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function place(){do{ap=[Math.floor(Math.random()*N),Math.floor(Math.random()*N)]}while(sn.some(s=>s[0]===ap[0]&&s[1]===ap[1]))}
+function sDraw(){cx.fillStyle=css('--bg');cx.fillRect(0,0,cv.width,cv.height);
+  cx.fillStyle=css('--d');cx.beginPath();cx.arc(ap[0]*S+S/2,ap[1]*S+S/2,S/2-2,0,7);cx.fill();
+  sn.forEach((s,i)=>{cx.fillStyle=i?css('--b'):css('--a');cx.fillRect(s[0]*S+1,s[1]*S+1,S-2,S-2)})}
+function stopSnake(){clearInterval(timer);timer=null}
+function sStart(){sn=[[7,7],[6,7],[5,7]];dir=nd=V.right;sc=0;$('#sScore').textContent=0;$('#sMsg').textContent='Go!';place();sDraw();stopSnake();timer=setInterval(tick,130);$('#sNew').textContent='Restart'}
+function tick(){dir=nd;const h=[sn[0][0]+dir[0],sn[0][1]+dir[1]];
+  if(h[0]<0||h[1]<0||h[0]>=N||h[1]>=N||sn.some(s=>s[0]===h[0]&&s[1]===h[1])){stopSnake();
+    if(sc>sBest){sBest=sc;save('pa-snake',sBest);$('#sBest').textContent=sBest}
+    $('#sMsg').textContent='Game over. Score: '+sc;return}
+  sn.unshift(h);if(h[0]===ap[0]&&h[1]===ap[1]){sc++;$('#sScore').textContent=sc;place()}else sn.pop();sDraw()}
+function turn(d){const v=V[d];if(v[0]+dir[0]||v[1]+dir[1])nd=v}
+document.addEventListener('keydown',e=>{const m={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];
+  if(m&&timer){e.preventDefault();turn(m)}});
+document.querySelectorAll('.pad .btn').forEach(b=>b.onclick=()=>{if(timer)turn(b.dataset.d)});
+let t0;cv.addEventListener('touchstart',e=>{t0=e.touches[0]},{passive:true});
+cv.addEventListener('touchend',e=>{if(!t0||!timer)return;const t=e.changedTouches[0],dx=t.clientX-t0.clientX,dy=t.clientY-t0.clientY;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;turn(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up'))});
+$('#sNew').onclick=sStart;
+sn=[[7,7],[6,7],[5,7]];dir=nd=V.right;ap=[10,4];
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(sDraw);sDraw();
+</script>
+</body>
+</html>
